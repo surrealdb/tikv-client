@@ -44,13 +44,13 @@ pub enum Error {
     Canceled(#[from] futures::channel::oneshot::Canceled),
     /// Errors caused by changes of region information
     #[error("Region error: {0:?}")]
-    RegionError(tikv_client_proto::errorpb::Error),
+    RegionError(surrealdb_tikv_client_proto::errorpb::Error),
     /// Whether the transaction is committed or not is undetermined
     #[error("Whether the transaction is committed or not is undetermined")]
     UndeterminedError(Box<Error>),
-    /// Wraps `tikv_client_proto::kvrpcpb::KeyError`
+    /// Wraps `surrealdb_tikv_client_proto::kvrpcpb::KeyError`
     #[error("{0:?}")]
-    KeyError(tikv_client_proto::kvrpcpb::KeyError),
+    KeyError(surrealdb_tikv_client_proto::kvrpcpb::KeyError),
     /// Multiple errors
     #[error("Multiple errors: {0:?}")]
     MultipleErrors(Vec<Error>),
@@ -78,14 +78,14 @@ pub enum Error {
     StringError(String),
 }
 
-impl From<tikv_client_proto::errorpb::Error> for Error {
-    fn from(e: tikv_client_proto::errorpb::Error) -> Error {
+impl From<surrealdb_tikv_client_proto::errorpb::Error> for Error {
+    fn from(e: surrealdb_tikv_client_proto::errorpb::Error) -> Error {
         Error::RegionError(e)
     }
 }
 
-impl From<tikv_client_proto::kvrpcpb::KeyError> for Error {
-    fn from(e: tikv_client_proto::kvrpcpb::KeyError) -> Error {
+impl From<surrealdb_tikv_client_proto::kvrpcpb::KeyError> for Error {
+    fn from(e: surrealdb_tikv_client_proto::kvrpcpb::KeyError) -> Error {
         Error::KeyError(e)
     }
 }

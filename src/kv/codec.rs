@@ -1,5 +1,5 @@
 use std::{io::Write, ptr};
-use tikv_client_common::internal_err;
+use surrealdb_tikv_client_common::internal_err;
 
 use crate::Result;
 

@@ -16,9 +16,9 @@ use std::{
     sync::{Arc, RwLock},
     thread,
 };
-use tikv_client_pd::Cluster;
-use tikv_client_proto::kvrpcpb;
-use tikv_client_store::{KvClient, KvConnect, TikvConnect};
+use surrealdb_tikv_client_pd::Cluster;
+use surrealdb_tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_store::{KvClient, KvConnect, TikvConnect};
 
 const CQ_COUNT: usize = 1;
 const CLIENT_PREFIX: &str = "tikv-client";

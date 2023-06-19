@@ -135,4 +135,4 @@ pub use crate::transaction::{
 #[doc(inline)]
 pub use config::Config;
 #[doc(inline)]
-pub use tikv_client_common::{security::SecurityManager, Error, Result};
+pub use surrealdb_tikv_client_common::{security::SecurityManager, Error, Result};

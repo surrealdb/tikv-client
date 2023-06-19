@@ -5,7 +5,7 @@
 /// generated protobuf code, then calls the low-level ctor functions in the requests module.
 use crate::{raw::requests, BoundRange, ColumnFamily, Key, KvPair, Value};
 use std::iter::Iterator;
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 pub fn new_raw_get_request(key: Key, cf: Option<ColumnFamily>) -> kvrpcpb::RawGetRequest {
     requests::new_raw_get_request(key.into(), cf)

@@ -11,7 +11,7 @@ use crate::{
     Result,
 };
 use std::{mem, sync::Arc};
-use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 
 // FIXME: cargo-culted value
 const SCAN_LOCK_BATCH_SIZE: u32 = 1024;

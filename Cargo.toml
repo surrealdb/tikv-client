@@ -1,5 +1,5 @@
 [package]
-name = "tikv-client"
+name = "surrealdb-tikv-client"
 version = "0.1.0-surreal.1"
 keywords = ["TiKV", "KV", "distributed-systems"]
 license = "Apache-2.0"
@@ -34,16 +34,16 @@ serde_derive = "1.0"
 thiserror = "1"
 tokio = { version = "1.0", features = [ "sync", "time" ] }
 
-tikv-client-common = { version = "0.1.0-surreal.1", path = "tikv-client-common" }
-tikv-client-pd = { version = "0.1.0-surreal.1", path = "tikv-client-pd" }
-tikv-client-proto = { version = "0.1.0-surreal.1", path = "tikv-client-proto" }
-tikv-client-store = { version = "0.1.0-surreal.1", path = "tikv-client-store" }
+surrealdb-tikv-client-common = { version = "0.1.0-surreal.1", path = "tikv-client-common" }
+surrealdb-tikv-client-pd = { version = "0.1.0-surreal.1", path = "tikv-client-pd" }
+surrealdb-tikv-client-proto = { version = "0.1.0-surreal.1", path = "tikv-client-proto" }
+surrealdb-tikv-client-store = { version = "0.1.0-surreal.1", path = "tikv-client-store" }
 
 
 [dev-dependencies]
 clap = "2"
 fail = { version = "0.4", features = [ "failpoints" ] }
-mock-tikv = {path = "mock-tikv"}
+surrealdb-mock-tikv = {path = "mock-tikv"}
 proptest = "1"
 proptest-derive = "0.3"
 serial_test = "0.5.0"

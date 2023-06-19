@@ -12,8 +12,8 @@ use crate::{
 use async_trait::async_trait;
 use futures::{prelude::*, stream::StreamExt};
 use std::{marker::PhantomData, sync::Arc};
-use tikv_client_proto::kvrpcpb;
-use tikv_client_store::{HasError, HasRegionError, KvClient};
+use surrealdb_tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_store::{HasError, HasRegionError, KvClient};
 
 /// A plan for how to execute a request. A user builds up a plan with various
 /// options, then exectutes it.
@@ -362,7 +362,7 @@ impl<Resp: HasError> HasError for ResponseAndKeys<Resp> {
 }
 
 impl<Resp: HasLocks> HasLocks for ResponseAndKeys<Resp> {
-    fn take_locks(&mut self) -> Vec<tikv_client_proto::kvrpcpb::LockInfo> {
+    fn take_locks(&mut self) -> Vec<surrealdb_tikv_client_proto::kvrpcpb::LockInfo> {
         self.0.take_locks()
     }
 }
@@ -412,7 +412,7 @@ mod test {
     use super::*;
     use crate::mock::{mock_store, MockPdClient};
     use futures::stream::BoxStream;
-    use tikv_client_proto::kvrpcpb::BatchGetResponse;
+    use surrealdb_tikv_client_proto::kvrpcpb::BatchGetResponse;
 
     #[derive(Clone)]
     struct ErrPlan;

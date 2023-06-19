@@ -2,7 +2,7 @@
 
 use crate::Error;
 use std::fmt::Display;
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 pub trait HasRegionError {
     fn region_error(&mut self) -> Option<Error>;
@@ -206,8 +206,8 @@ fn extract_errors(error_iter: impl Iterator<Item = Option<kvrpcpb::KeyError>>) -
 #[cfg(test)]
 mod test {
     use super::HasError;
-    use tikv_client_common::{internal_err, Error};
-    use tikv_client_proto::kvrpcpb;
+    use surrealdb_tikv_client_common::{internal_err, Error};
+    use surrealdb_tikv_client_proto::kvrpcpb;
     #[test]
     fn result_haslocks() {
         let mut resp: Result<_, Error> = Ok(kvrpcpb::CommitResponse {

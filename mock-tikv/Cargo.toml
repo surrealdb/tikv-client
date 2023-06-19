@@ -1,5 +1,5 @@
 [package]
-name = "mock-tikv"
+name = "surrealdb-mock-tikv"
 version = "0.0.0"
 edition = "2018"
 
@@ -8,4 +8,4 @@ derive-new = "0.5"
 futures = "0.3"
 grpcio = { version = "0.8", features = [ "secure", "prost-codec", "use-bindgen" ], default-features = false }
 log = "0.4"
-tikv-client-proto = { path = "../tikv-client-proto"}
+surrealdb-tikv-client-proto = { path = "../tikv-client-proto"}

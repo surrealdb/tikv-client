@@ -4,7 +4,7 @@ use crate::{spawn_unary_success, MOCK_TIKV_PORT};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use grpcio::{Environment, Server, ServerBuilder, WriteFlags};
 use std::sync::Arc;
-use tikv_client_proto::pdpb::*;
+use surrealdb_tikv_client_proto::pdpb::*;
 
 pub const MOCK_PD_PORT: u16 = 50021;
 /// This is mock pd server, used with mock tikv server.
@@ -18,8 +18,8 @@ impl MockPd {
         MockPd { ts: 0 }
     }
 
-    fn region() -> tikv_client_proto::metapb::Region {
-        tikv_client_proto::metapb::Region {
+    fn region() -> surrealdb_tikv_client_proto::metapb::Region {
+        surrealdb_tikv_client_proto::metapb::Region {
             start_key: vec![],
             end_key: vec![],
             peers: vec![Self::leader()],
@@ -27,13 +27,13 @@ impl MockPd {
         }
     }
 
-    fn leader() -> tikv_client_proto::metapb::Peer {
-        tikv_client_proto::metapb::Peer::default()
+    fn leader() -> surrealdb_tikv_client_proto::metapb::Peer {
+        surrealdb_tikv_client_proto::metapb::Peer::default()
     }
 
-    fn store() -> tikv_client_proto::metapb::Store {
+    fn store() -> surrealdb_tikv_client_proto::metapb::Store {
         // TODO: start_timestamp?
-        tikv_client_proto::metapb::Store {
+        surrealdb_tikv_client_proto::metapb::Store {
             address: format!("localhost:{}", MOCK_TIKV_PORT),
             ..Default::default()
         }

@@ -12,7 +12,7 @@ use derive_new::new;
 use fail::fail_point;
 use futures::{prelude::*, stream::BoxStream};
 use std::{iter, ops::RangeBounds, sync::Arc, time::Instant};
-use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 use tokio::{sync::RwLock, time::Duration};
 
 /// An undo-able set of actions on the dataset.
@@ -1267,7 +1267,7 @@ mod tests {
         },
         time::Duration,
     };
-    use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+    use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 
     #[tokio::test]
     async fn test_optimistic_heartbeat() -> Result<(), io::Error> {

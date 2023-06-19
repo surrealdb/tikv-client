@@ -11,7 +11,7 @@ use crate::{
 };
 use futures::stream::BoxStream;
 use std::sync::Arc;
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 pub fn new_raw_get_request(key: Vec<u8>, cf: Option<ColumnFamily>) -> kvrpcpb::RawGetRequest {
     let mut req = kvrpcpb::RawGetRequest::default();
@@ -359,7 +359,7 @@ mod test {
     };
     use futures::executor;
     use std::any::Any;
-    use tikv_client_proto::kvrpcpb;
+    use surrealdb_tikv_client_proto::kvrpcpb;
 
     #[test]
     #[ignore]

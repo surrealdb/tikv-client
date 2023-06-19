@@ -14,8 +14,8 @@ use crate::{
 use async_trait::async_trait;
 use derive_new::new;
 use std::{any::Any, sync::Arc};
-use tikv_client_proto::metapb;
-use tikv_client_store::{KvClient, KvConnect, Request};
+use surrealdb_tikv_client_proto::metapb;
+use surrealdb_tikv_client_store::{KvClient, KvConnect, Request};
 
 /// Create a `PdRpcClient` with it's internals replaced with mocks so that the
 /// client can be tested without doing any RPC calls.

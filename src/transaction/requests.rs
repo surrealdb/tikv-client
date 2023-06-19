@@ -13,7 +13,7 @@ use crate::{
 };
 use futures::stream::BoxStream;
 use std::{collections::HashMap, iter, sync::Arc};
-use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 
 // implement HasLocks for a response type that has a `pairs` field,
 // where locks can be extracted from both the `pairs` and `error` fields

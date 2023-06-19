@@ -7,8 +7,8 @@ use std::{
     cmp::{max, min},
     sync::Arc,
 };
-use tikv_client_proto::kvrpcpb;
-use tikv_client_store::{KvClient, KvConnect, TikvConnect};
+use surrealdb_tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_store::{KvClient, KvConnect, TikvConnect};
 
 #[derive(new)]
 pub struct Store {

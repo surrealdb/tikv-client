@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use tikv_client_proto::kvrpcpb::KvPair;
+use surrealdb_tikv_client_proto::kvrpcpb::KvPair;
 
 #[derive(Debug, Clone)]
 pub struct KvStore {

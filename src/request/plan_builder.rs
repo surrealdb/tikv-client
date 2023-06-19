@@ -13,7 +13,7 @@ use crate::{
     Result,
 };
 use std::{marker::PhantomData, sync::Arc};
-use tikv_client_store::HasError;
+use surrealdb_tikv_client_store::HasError;
 
 /// Builder type for plans (see that module for more).
 pub struct PlanBuilder<PdC: PdClient, P: Plan, Ph: PlanBuilderPhase> {

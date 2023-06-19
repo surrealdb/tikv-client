@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use derive_new::new;
 use grpcio::{CallOption, Environment};
 use std::{any::Any, sync::Arc, time::Duration};
-use tikv_client_proto::tikvpb::TikvClient;
+use surrealdb_tikv_client_proto::tikvpb::TikvClient;
 
 /// A trait for connecting to TiKV stores.
 pub trait KvConnect: Sized + Send + Sync + 'static {

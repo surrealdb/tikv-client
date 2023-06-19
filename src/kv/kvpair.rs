@@ -4,7 +4,7 @@ use super::{HexRepr, Key, Value};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use std::{fmt, str};
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 /// A key/value pair.
 ///

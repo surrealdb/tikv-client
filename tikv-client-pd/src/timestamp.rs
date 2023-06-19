@@ -21,8 +21,8 @@ use futures::{
 };
 use grpcio::WriteFlags;
 use std::{cell::RefCell, collections::VecDeque, pin::Pin, rc::Rc, thread};
-use tikv_client_common::internal_err;
-use tikv_client_proto::pdpb::*;
+use surrealdb_tikv_client_common::internal_err;
+use surrealdb_tikv_client_proto::pdpb::*;
 
 /// It is an empirical value.
 const MAX_BATCH_SIZE: usize = 64;

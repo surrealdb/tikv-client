@@ -15,8 +15,8 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tikv_client_pd::{Cluster, Connection};
-use tikv_client_proto::{
+use surrealdb_tikv_client_pd::{Cluster, Connection};
+use surrealdb_tikv_client_proto::{
     metapb,
     pdpb::{self, Timestamp},
 };
@@ -210,7 +210,7 @@ mod test {
     use super::*;
     use futures::{executor, future::ready};
     use std::sync::Mutex;
-    use tikv_client_common::internal_err;
+    use surrealdb_tikv_client_common::internal_err;
 
     #[test]
     fn test_reconnect() {

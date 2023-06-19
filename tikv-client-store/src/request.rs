@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use grpcio::CallOption;
 use std::any::Any;
-use tikv_client_proto::{kvrpcpb, tikvpb::TikvClient};
+use surrealdb_tikv_client_proto::{kvrpcpb, tikvpb::TikvClient};
 
 #[async_trait]
 pub trait Request: Any + Sync + Send + 'static {

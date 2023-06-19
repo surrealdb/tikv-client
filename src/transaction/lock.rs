@@ -13,7 +13,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 
 const RESOLVE_LOCK_RETRY_LIMIT: usize = 10;
 
@@ -134,7 +134,7 @@ mod tests {
     use crate::mock::{MockKvClient, MockPdClient};
     use futures::executor;
     use std::any::Any;
-    use tikv_client_proto::errorpb;
+    use surrealdb_tikv_client_proto::errorpb;
 
     #[test]
     fn test_resolve_lock_with_retry() {

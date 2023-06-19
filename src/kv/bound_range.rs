@@ -10,7 +10,7 @@ use std::{
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 use super::Key;
 

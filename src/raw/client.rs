@@ -1,6 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use tikv_client_common::Error;
+use surrealdb_tikv_client_common::Error;
 
 use crate::{
     backoff::DEFAULT_REGION_BACKOFF,

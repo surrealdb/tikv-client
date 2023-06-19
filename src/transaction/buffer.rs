@@ -5,7 +5,7 @@ use std::{
     collections::{btree_map::Entry, BTreeMap, HashMap},
     future::Future,
 };
-use tikv_client_proto::kvrpcpb;
+use surrealdb_tikv_client_proto::kvrpcpb;
 
 /// A caching layer which buffers reads and writes in a transaction.
 pub struct Buffer {
@@ -374,7 +374,7 @@ impl MutationValue {
 mod tests {
     use super::*;
     use futures::{executor::block_on, future::ready};
-    use tikv_client_common::internal_err;
+    use surrealdb_tikv_client_common::internal_err;
 
     #[test]
     fn set_and_get_from_buffer() {

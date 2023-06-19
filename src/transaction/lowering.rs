@@ -5,7 +5,7 @@
 /// generated protobuf code, then calls the low-level ctor functions in the requests module.
 use crate::{timestamp::TimestampExt, transaction::requests, BoundRange, Key};
 use std::iter::Iterator;
-use tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
+use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp};
 
 pub fn new_get_request(key: Key, timestamp: Timestamp) -> kvrpcpb::GetRequest {
     requests::new_get_request(key.into(), timestamp.version())

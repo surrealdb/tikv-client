@@ -3,7 +3,7 @@
 //! from PD, using its HTTP API.
 
 use super::pd_addrs;
-use tikv_client_common::{Error, Result};
+use surrealdb_tikv_client_common::{Error, Result};
 
 pub async fn get_region_count() -> Result<u64> {
     let res = reqwest::get(format!("http://{}/pd/api/v1/regions", pd_addrs()[0]))

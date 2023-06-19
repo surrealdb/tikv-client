@@ -1,5 +1,5 @@
 [package]
-name = "tikv-client-proto"
+name = "surrealdb-tikv-client-proto"
 version = "0.1.0-surreal.1"
 edition = "2018"
 license = "Apache-2.0"

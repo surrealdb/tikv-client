@@ -6,7 +6,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use derive_new::new;
-use tikv_client_store::{HasError, Request};
+use surrealdb_tikv_client_store::{HasError, Request};
 
 pub use self::{
     plan::{
@@ -77,8 +77,8 @@ mod test {
         iter,
         sync::{Arc, Mutex},
     };
-    use tikv_client_proto::{kvrpcpb, pdpb::Timestamp, tikvpb::TikvClient};
-    use tikv_client_store::HasRegionError;
+    use surrealdb_tikv_client_proto::{kvrpcpb, pdpb::Timestamp, tikvpb::TikvClient};
+    use surrealdb_tikv_client_store::HasRegionError;
 
     #[test]
     fn test_region_retry() {

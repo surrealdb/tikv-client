@@ -1,6 +1,6 @@
 use crate::{Error, Key, Result};
 use derive_new::new;
-use tikv_client_proto::{kvrpcpb, metapb};
+use surrealdb_tikv_client_proto::{kvrpcpb, metapb};
 
 /// The ID of a region
 pub type RegionId = u64;
