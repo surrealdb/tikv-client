@@ -1,6 +1,6 @@
 [package]
 name = "surrealdb-tikv-client-proto"
-version = "0.1.0-surreal.1"
+version = "0.1.0-surreal.2"
 edition = "2018"
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
@@ -9,12 +9,12 @@ description = "Protobuf specs for the TiKV Rust client"
 build = "build.rs"
 
 [build-dependencies]
-protobuf-build = { version = "0.12", default-features = false, features = ["grpcio-prost-codec"] }
+protobuf-build = { version = "0.14", default-features = false, features = ["grpcio-prost-codec"] }
 
 [dependencies]
 protobuf = "2.8"
-prost = { version = "0.7" }
-prost-derive = { version = "0.7" }
+prost = { version = "0.9" }
+prost-derive = { version = "0.9" }
 futures = "0.3"
-grpcio = { version = "0.8", default-features = false, features = ["secure", "prost-codec", "use-bindgen"] }
+grpcio = { version = "0.10", default-features = false, features = ["boringssl", "prost-codec"] }
 lazy_static = { version = "1" }
