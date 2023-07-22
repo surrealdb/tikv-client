@@ -19,7 +19,7 @@ The TiKV client is a Rust library (crate). To use this crate in your project, ad
 
 ```toml
 [dependencies]
-tikv-client = "0.1.0-surreal.2"
+tikv-client = "0.1.1"
 ```
 
 The minimum supported version of Rust is 1.40. The minimum supported version of TiKV is 5.0.

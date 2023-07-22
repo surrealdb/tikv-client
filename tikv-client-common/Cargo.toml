@@ -1,6 +1,6 @@
 [package]
 name = "surrealdb-tikv-client-common"
-version = "0.1.0-surreal.2"
+version = "0.1.1"
 edition = "2018"
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
@@ -14,7 +14,7 @@ grpcio = { version = "0.10", features = [ "boringssl", "prost-codec" ], default-
 lazy_static = "1"
 log = "0.4"
 regex = "1"
-surrealdb-tikv-client-proto = { version = "0.1.0-surreal.2", path = "../tikv-client-proto" }
+surrealdb-tikv-client-proto = { version = "0.1.1", path = "../tikv-client-proto" }
 
 [dev-dependencies]
 clap = "2"

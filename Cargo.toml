@@ -1,6 +1,6 @@
 [package]
 name = "surrealdb-tikv-client"
-version = "0.1.0-surreal.2"
+version = "0.1.1"
 keywords = ["TiKV", "KV", "distributed-systems"]
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
@@ -34,10 +34,10 @@ serde_derive = "1.0"
 thiserror = "1"
 tokio = { version = "1.0", features = [ "sync", "time" ] }
 
-surrealdb-tikv-client-common = { version = "0.1.0-surreal.2", path = "tikv-client-common" }
-surrealdb-tikv-client-pd = { version = "0.1.0-surreal.2", path = "tikv-client-pd" }
-surrealdb-tikv-client-proto = { version = "0.1.0-surreal.2", path = "tikv-client-proto" }
-surrealdb-tikv-client-store = { version = "0.1.0-surreal.2", path = "tikv-client-store" }
+surrealdb-tikv-client-common = { version = "0.1.1", path = "tikv-client-common" }
+surrealdb-tikv-client-pd = { version = "0.1.1", path = "tikv-client-pd" }
+surrealdb-tikv-client-proto = { version = "0.1.1", path = "tikv-client-proto" }
+surrealdb-tikv-client-store = { version = "0.1.1", path = "tikv-client-store" }
 
 
 [dev-dependencies]

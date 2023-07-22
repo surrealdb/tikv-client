@@ -1,6 +1,6 @@
 [package]
 name = "surrealdb-tikv-client-proto"
-version = "0.1.0-surreal.2"
+version = "0.1.1"
 edition = "2018"
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
