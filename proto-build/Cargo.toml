@@ -1,5 +1,5 @@
 [package]
-name = "tikv-client-proto-build"
+name = "surrealdb-tikv-client-proto-build"
 version = "0.0.0"
 publish = false
 
