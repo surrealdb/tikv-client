@@ -156,9 +156,7 @@ impl<PdC: PdClient> Transaction<PdC> {
         // Convert to the timestamp to bytes.
         let r = rpc.get_timestamp().await;
         match r {
-            Ok(ts) => {
-                Ok(ts)
-            },
+            Ok(ts) => Ok(ts),
             Err(e) => Err(e),
         }
     }
