@@ -12,7 +12,7 @@ INTEGRATION_TEST_ARGS := --features "integration-tests"
 default: check
 
 generate:
-	cargo run -p tikv-client-proto-build
+	cargo run -p surrealdb-tikv-client-proto-build
 
 check: generate
 	cargo check --all --all-targets --features "${ALL_FEATURES}"
