@@ -154,6 +154,24 @@ impl<PdC: PdClient> Transaction<PdC> {
             .await
     }
 
+    pub fn get_read_timestamp(&self) -> Timestamp {
+        self.timestamp.clone()
+    }
+
+    pub async fn get_current_timestamp(&mut self) -> Result<Timestamp> {
+        self.check_allow_operation().await?;
+        let rpc = self.rpc.clone();
+
+        // Convert to the timestamp to bytes.
+        let r = rpc.get_timestamp().await;
+        match r {
+            Ok(ts) => {
+                Ok(ts)
+            },
+            Err(e) => Err(e),
+        }
+    }
+
     /// Create a `get for update` request.
     ///
     /// The request reads and "locks" a key. It is similar to `SELECT ... FOR
