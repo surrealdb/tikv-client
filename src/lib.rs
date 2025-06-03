@@ -91,6 +91,12 @@
 //! ```
 
 #![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(non_local_definitions)]
+#![allow(clippy::needless_lifetimes)]
+#![allow(clippy::legacy_numeric_constants)]
+#![allow(unexpected_cfgs)]
+#![allow(clippy::result_large_err)]
 
 pub mod backoff;
 #[doc(hidden)]
