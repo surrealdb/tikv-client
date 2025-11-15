@@ -17,6 +17,8 @@ use crate::pd::PdClient;
 use crate::proto::errorpb;
 use crate::proto::errorpb::EpochNotMatch;
 use crate::proto::kvrpcpb;
+use crate::region::StoreId;
+use crate::region::{RegionVerId, RegionWithLeader};
 use crate::request::shard::HasNextBatch;
 use crate::request::NextBatch;
 use crate::request::Shardable;
@@ -114,15 +116,15 @@ where
         preserve_region_results: bool,
     ) -> Result<<Self as Plan>::Result> {
         let shards = current_plan.shards(&pd_client).collect::<Vec<_>>().await;
-        let mut handles = Vec::new();
+        debug!("single_plan_handler, shards: {}", shards.len());
+        let mut handles = Vec::with_capacity(shards.len());
         for shard in shards {
-            let (shard, region_store) = shard?;
-            let mut clone = current_plan.clone();
-            clone.apply_shard(shard, &region_store)?;
+            let (shard, region) = shard?;
+            let clone = current_plan.clone_then_apply_shard(shard);
             let handle = tokio::spawn(Self::single_shard_handler(
                 pd_client.clone(),
                 clone,
-                region_store,
+                region,
                 backoff.clone(),
                 permits.clone(),
                 preserve_region_results,
@@ -153,12 +155,45 @@ where
     #[async_recursion]
     async fn single_shard_handler(
         pd_client: Arc<PdC>,
-        plan: P,
-        region_store: RegionStore,
+        mut plan: P,
+        region: RegionWithLeader,
         mut backoff: Backoff,
         permits: Arc<Semaphore>,
         preserve_region_results: bool,
     ) -> Result<<Self as Plan>::Result> {
+        debug!("single_shard_handler");
+        let region_store = match pd_client
+            .clone()
+            .map_region_to_store(region)
+            .await
+            .and_then(|region_store| {
+                plan.apply_store(&region_store)?;
+                Ok(region_store)
+            }) {
+            Ok(region_store) => region_store,
+            Err(Error::LeaderNotFound { region }) => {
+                debug!(
+                    "single_shard_handler::sharding: leader not found: {:?}",
+                    region
+                );
+                return Self::handle_other_error(
+                    pd_client,
+                    plan,
+                    region.clone(),
+                    None,
+                    backoff,
+                    permits,
+                    preserve_region_results,
+                    Error::LeaderNotFound { region },
+                )
+                .await;
+            }
+            Err(err) => {
+                debug!("single_shard_handler::sharding, error: {:?}", err);
+                return Err(err);
+            }
+        };
+
         // limit concurrent requests
         let permit = permits.acquire().await.unwrap();
         let res = plan.execute().await;
@@ -167,10 +202,12 @@ where
         let mut resp = match res {
             Ok(resp) => resp,
             Err(e) if is_grpc_error(&e) => {
-                return Self::handle_grpc_error(
+                debug!("single_shard_handler:execute: grpc error: {:?}", e);
+                return Self::handle_other_error(
                     pd_client,
                     plan,
-                    region_store,
+                    region_store.region_with_leader.ver_id(),
+                    region_store.region_with_leader.get_store_id().ok(),
                     backoff,
                     permits,
                     preserve_region_results,
@@ -178,16 +215,21 @@ where
                 )
                 .await;
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                debug!("single_shard_handler:execute: error: {:?}", e);
+                return Err(e);
+            }
         };
 
         if let Some(e) = resp.key_errors() {
+            debug!("single_shard_handler:execute: key errors: {:?}", e);
             Ok(vec![Err(Error::MultipleKeyErrors(e))])
         } else if let Some(e) = resp.region_error() {
+            debug!("single_shard_handler:execute: region error: {:?}", e);
             match backoff.next_delay_duration() {
                 Some(duration) => {
                     let region_error_resolved =
-                        Self::handle_region_error(pd_client.clone(), e, region_store).await?;
+                        handle_region_error(pd_client.clone(), e, region_store).await?;
                     // don't sleep if we have resolved the region error
                     if !region_error_resolved {
                         sleep(duration).await;
@@ -208,114 +250,24 @@ where
         }
     }
 
-    // Returns
-    // 1. Ok(true): error has been resolved, retry immediately
-    // 2. Ok(false): backoff, and then retry
-    // 3. Err(Error): can't be resolved, return the error to upper level
-    async fn handle_region_error(
-        pd_client: Arc<PdC>,
-        e: errorpb::Error,
-        region_store: RegionStore,
-    ) -> Result<bool> {
-        let ver_id = region_store.region_with_leader.ver_id();
-        if let Some(not_leader) = e.not_leader {
-            if let Some(leader) = not_leader.leader {
-                match pd_client
-                    .update_leader(region_store.region_with_leader.ver_id(), leader)
-                    .await
-                {
-                    Ok(_) => Ok(true),
-                    Err(e) => {
-                        pd_client.invalidate_region_cache(ver_id).await;
-                        Err(e)
-                    }
-                }
-            } else {
-                // The peer doesn't know who is the current leader. Generally it's because
-                // the Raft group is in an election, but it's possible that the peer is
-                // isolated and removed from the Raft group. So it's necessary to reload
-                // the region from PD.
-                pd_client.invalidate_region_cache(ver_id).await;
-                Ok(false)
-            }
-        } else if e.store_not_match.is_some() {
-            pd_client.invalidate_region_cache(ver_id).await;
-            Ok(false)
-        } else if e.epoch_not_match.is_some() {
-            Self::on_region_epoch_not_match(
-                pd_client.clone(),
-                region_store,
-                e.epoch_not_match.unwrap(),
-            )
-            .await
-        } else if e.stale_command.is_some() || e.region_not_found.is_some() {
-            pd_client.invalidate_region_cache(ver_id).await;
-            Ok(false)
-        } else if e.server_is_busy.is_some()
-            || e.raft_entry_too_large.is_some()
-            || e.max_timestamp_not_synced.is_some()
-        {
-            Err(Error::RegionError(Box::new(e)))
-        } else {
-            // TODO: pass the logger around
-            // info!("unknwon region error: {:?}", e);
-            pd_client.invalidate_region_cache(ver_id).await;
-            Ok(false)
-        }
-    }
-
-    // Returns
-    // 1. Ok(true): error has been resolved, retry immediately
-    // 2. Ok(false): backoff, and then retry
-    // 3. Err(Error): can't be resolved, return the error to upper level
-    async fn on_region_epoch_not_match(
-        pd_client: Arc<PdC>,
-        region_store: RegionStore,
-        error: EpochNotMatch,
-    ) -> Result<bool> {
-        let ver_id = region_store.region_with_leader.ver_id();
-        if error.current_regions.is_empty() {
-            pd_client.invalidate_region_cache(ver_id).await;
-            return Ok(true);
-        }
-
-        for r in error.current_regions {
-            if r.id == region_store.region_with_leader.id() {
-                let region_epoch = r.region_epoch.unwrap();
-                let returned_conf_ver = region_epoch.conf_ver;
-                let returned_version = region_epoch.version;
-                let current_region_epoch = region_store
-                    .region_with_leader
-                    .region
-                    .region_epoch
-                    .clone()
-                    .unwrap();
-                let current_conf_ver = current_region_epoch.conf_ver;
-                let current_version = current_region_epoch.version;
-
-                // Find whether the current region is ahead of TiKV's. If so, backoff.
-                if returned_conf_ver < current_conf_ver || returned_version < current_version {
-                    return Ok(false);
-                }
-            }
-        }
-        // TODO: finer grained processing
-        pd_client.invalidate_region_cache(ver_id).await;
-        Ok(false)
-    }
-
-    async fn handle_grpc_error(
+    #[allow(clippy::too_many_arguments)]
+    async fn handle_other_error(
         pd_client: Arc<PdC>,
         plan: P,
-        region_store: RegionStore,
+        region: RegionVerId,
+        store: Option<StoreId>,
         mut backoff: Backoff,
         permits: Arc<Semaphore>,
         preserve_region_results: bool,
         e: Error,
     ) -> Result<<Self as Plan>::Result> {
-        debug!("handle grpc error: {:?}", e);
-        let ver_id = region_store.region_with_leader.ver_id();
-        pd_client.invalidate_region_cache(ver_id).await;
+        debug!("handle_other_error: {:?}", e);
+        pd_client.invalidate_region_cache(region).await;
+        if is_grpc_error(&e) {
+            if let Some(store_id) = store {
+                pd_client.invalidate_store_cache(store_id).await;
+            }
+        }
         match backoff.next_delay_duration() {
             Some(duration) => {
                 sleep(duration).await;
@@ -331,6 +283,105 @@ where
             None => Err(e),
         }
     }
+}
+
+// Returns
+// 1. Ok(true): error has been resolved, retry immediately
+// 2. Ok(false): backoff, and then retry
+// 3. Err(Error): can't be resolved, return the error to upper level
+pub(crate) async fn handle_region_error<PdC: PdClient>(
+    pd_client: Arc<PdC>,
+    e: errorpb::Error,
+    region_store: RegionStore,
+) -> Result<bool> {
+    debug!("handle_region_error: {:?}", e);
+    let ver_id = region_store.region_with_leader.ver_id();
+    let store_id = region_store.region_with_leader.get_store_id();
+    if let Some(not_leader) = e.not_leader {
+        if let Some(leader) = not_leader.leader {
+            match pd_client
+                .update_leader(region_store.region_with_leader.ver_id(), leader)
+                .await
+            {
+                Ok(_) => Ok(true),
+                Err(e) => {
+                    pd_client.invalidate_region_cache(ver_id).await;
+                    Err(e)
+                }
+            }
+        } else {
+            // The peer doesn't know who is the current leader. Generally it's because
+            // the Raft group is in an election, but it's possible that the peer is
+            // isolated and removed from the Raft group. So it's necessary to reload
+            // the region from PD.
+            pd_client.invalidate_region_cache(ver_id).await;
+            Ok(false)
+        }
+    } else if e.store_not_match.is_some() {
+        pd_client.invalidate_region_cache(ver_id).await;
+        if let Ok(store_id) = store_id {
+            pd_client.invalidate_store_cache(store_id).await;
+        }
+        Ok(false)
+    } else if e.epoch_not_match.is_some() {
+        on_region_epoch_not_match(pd_client.clone(), region_store, e.epoch_not_match.unwrap()).await
+    } else if e.stale_command.is_some() || e.region_not_found.is_some() {
+        pd_client.invalidate_region_cache(ver_id).await;
+        Ok(false)
+    } else if e.server_is_busy.is_some()
+        || e.raft_entry_too_large.is_some()
+        || e.max_timestamp_not_synced.is_some()
+    {
+        Err(Error::RegionError(Box::new(e)))
+    } else {
+        // TODO: pass the logger around
+        // info!("unknwon region error: {:?}", e);
+        pd_client.invalidate_region_cache(ver_id).await;
+        if let Ok(store_id) = store_id {
+            pd_client.invalidate_store_cache(store_id).await;
+        }
+        Ok(false)
+    }
+}
+
+// Returns
+// 1. Ok(true): error has been resolved, retry immediately
+// 2. Ok(false): backoff, and then retry
+// 3. Err(Error): can't be resolved, return the error to upper level
+pub(crate) async fn on_region_epoch_not_match<PdC: PdClient>(
+    pd_client: Arc<PdC>,
+    region_store: RegionStore,
+    error: EpochNotMatch,
+) -> Result<bool> {
+    let ver_id = region_store.region_with_leader.ver_id();
+    if error.current_regions.is_empty() {
+        pd_client.invalidate_region_cache(ver_id).await;
+        return Ok(true);
+    }
+
+    for r in error.current_regions {
+        if r.id == region_store.region_with_leader.id() {
+            let region_epoch = r.region_epoch.unwrap();
+            let returned_conf_ver = region_epoch.conf_ver;
+            let returned_version = region_epoch.version;
+            let current_region_epoch = region_store
+                .region_with_leader
+                .region
+                .region_epoch
+                .clone()
+                .unwrap();
+            let current_conf_ver = current_region_epoch.conf_ver;
+            let current_version = current_region_epoch.version;
+
+            // Find whether the current region is ahead of TiKV's. If so, backoff.
+            if returned_conf_ver < current_conf_ver || returned_version < current_version {
+                return Ok(false);
+            }
+        }
+    }
+    // TODO: finer grained processing
+    pd_client.invalidate_region_cache(ver_id).await;
+    Ok(false)
 }
 
 impl<P: Plan, PdC: PdClient> Clone for RetryableMultiRegion<P, PdC> {
@@ -886,11 +937,13 @@ mod test {
         fn shards(
             &self,
             _: &Arc<impl crate::pd::PdClient>,
-        ) -> BoxStream<'static, crate::Result<(Self::Shard, crate::store::RegionStore)>> {
+        ) -> BoxStream<'static, crate::Result<(Self::Shard, RegionWithLeader)>> {
             Box::pin(stream::iter(1..=3).map(|_| Err(Error::Unimplemented))).boxed()
         }
 
-        fn apply_shard(&mut self, _: Self::Shard, _: &crate::store::RegionStore) -> Result<()> {
+        fn apply_shard(&mut self, _: Self::Shard) {}
+
+        fn apply_store(&mut self, _: &crate::store::RegionStore) -> Result<()> {
             Ok(())
         }
     }

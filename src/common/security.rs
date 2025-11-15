@@ -8,11 +8,10 @@ use std::time::Duration;
 
 use log::info;
 use regex::Regex;
-use tonic::transport::Certificate;
 use tonic::transport::Channel;
 use tonic::transport::ClientTlsConfig;
-use tonic::transport::Endpoint;
 use tonic::transport::Identity;
+use tonic::transport::{Certificate, Endpoint};
 
 use crate::internal_err;
 use crate::Result;
@@ -79,7 +78,6 @@ impl SecurityManager {
         Factory: FnOnce(Channel) -> Client,
     {
         info!("connect to rpc server at endpoint: {:?}", addr);
-
         let channel = if !self.ca.is_empty() {
             self.tls_channel(addr).await?
         } else {

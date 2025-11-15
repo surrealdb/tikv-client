@@ -1,16 +1,8 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::any::Any;
-use std::ops::Range;
-use std::sync::Arc;
-use std::time::Duration;
-
-use async_trait::async_trait;
-use futures::stream::BoxStream;
-use tonic::transport::Channel;
-
 use super::RawRpcRequest;
 use crate::collect_single;
+use crate::kv::KvPairTTL;
 use crate::pd::PdClient;
 use crate::proto::kvrpcpb;
 use crate::proto::metapb;
@@ -18,7 +10,6 @@ use crate::proto::tikvpb::tikv_client::TikvClient;
 use crate::range_request;
 use crate::region::RegionWithLeader;
 use crate::request::plan::ResponseWithShard;
-use crate::request::Collect;
 use crate::request::CollectSingle;
 use crate::request::DefaultProcessor;
 use crate::request::KvRequest;
@@ -27,11 +18,12 @@ use crate::request::Process;
 use crate::request::RangeRequest;
 use crate::request::Shardable;
 use crate::request::SingleKey;
+use crate::request::{Batchable, Collect};
 use crate::shardable_key;
 use crate::shardable_keys;
 use crate::shardable_range;
-use crate::store::store_stream_for_keys;
-use crate::store::store_stream_for_ranges;
+use crate::store::region_stream_for_keys;
+use crate::store::region_stream_for_ranges;
 use crate::store::RegionStore;
 use crate::store::Request;
 use crate::transaction::HasLocks;
@@ -41,6 +33,16 @@ use crate::Key;
 use crate::KvPair;
 use crate::Result;
 use crate::Value;
+use async_trait::async_trait;
+use futures::stream::BoxStream;
+use futures::{stream, StreamExt};
+use std::any::Any;
+use std::ops::Range;
+use std::sync::Arc;
+use std::time::Duration;
+use tonic::transport::Channel;
+
+const RAW_KV_REQUEST_BATCH_SIZE: u64 = 16 * 1024; // 16 KB
 
 pub fn new_raw_get_request(key: Vec<u8>, cf: Option<ColumnFamily>) -> kvrpcpb::RawGetRequest {
     let mut req = kvrpcpb::RawGetRequest::default();
@@ -189,25 +191,62 @@ impl KvRequest for kvrpcpb::RawBatchPutRequest {
     type Response = kvrpcpb::RawBatchPutResponse;
 }
 
+impl Batchable for kvrpcpb::RawBatchPutRequest {
+    type Item = (kvrpcpb::KvPair, u64);
+
+    fn item_size(item: &Self::Item) -> u64 {
+        (item.0.key.len() + item.0.value.len()) as u64
+    }
+}
+
 impl Shardable for kvrpcpb::RawBatchPutRequest {
-    type Shard = Vec<kvrpcpb::KvPair>;
+    type Shard = Vec<(kvrpcpb::KvPair, u64)>;
 
     fn shards(
         &self,
         pd_client: &Arc<impl PdClient>,
-    ) -> BoxStream<'static, Result<(Self::Shard, RegionStore)>> {
-        let mut pairs = self.pairs.clone();
-        pairs.sort_by(|a, b| a.key.cmp(&b.key));
-        store_stream_for_keys(
-            pairs.into_iter().map(Into::<KvPair>::into),
-            pd_client.clone(),
-        )
+    ) -> BoxStream<'static, Result<(Self::Shard, RegionWithLeader)>> {
+        let kvs = self.pairs.clone();
+        let ttls = self.ttls.clone();
+        let mut kv_ttl: Vec<KvPairTTL> = kvs
+            .into_iter()
+            .zip(ttls)
+            .map(|(kv, ttl)| KvPairTTL(kv, ttl))
+            .collect();
+        kv_ttl.sort_by(|a, b| a.0.key.cmp(&b.0.key));
+        region_stream_for_keys(kv_ttl.into_iter(), pd_client.clone())
+            .flat_map(|result| match result {
+                Ok((keys, region)) => stream::iter(kvrpcpb::RawBatchPutRequest::batches(
+                    keys,
+                    RAW_KV_REQUEST_BATCH_SIZE,
+                ))
+                .map(move |batch| Ok((batch, region.clone())))
+                .boxed(),
+                Err(e) => stream::iter(Err(e)).boxed(),
+            })
+            .boxed()
     }
 
-    fn apply_shard(&mut self, shard: Self::Shard, store: &RegionStore) -> Result<()> {
-        self.set_leader(&store.region_with_leader)?;
-        self.pairs = shard;
-        Ok(())
+    fn apply_shard(&mut self, shard: Self::Shard) {
+        let (pairs, ttls) = shard.into_iter().unzip();
+        self.pairs = pairs;
+        self.ttls = ttls;
+    }
+
+    fn clone_then_apply_shard(&self, shard: Self::Shard) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        let mut cloned = Self::default();
+        cloned.context = self.context.clone();
+        cloned.cf = self.cf.clone();
+        cloned.for_cas = self.for_cas;
+        cloned.apply_shard(shard);
+        cloned
+    }
+
+    fn apply_store(&mut self, store: &RegionStore) -> Result<()> {
+        self.set_leader(&store.region_with_leader)
     }
 }
 
@@ -251,7 +290,56 @@ impl KvRequest for kvrpcpb::RawBatchDeleteRequest {
     type Response = kvrpcpb::RawBatchDeleteResponse;
 }
 
-shardable_keys!(kvrpcpb::RawBatchDeleteRequest);
+impl Batchable for kvrpcpb::RawBatchDeleteRequest {
+    type Item = Vec<u8>;
+
+    fn item_size(item: &Self::Item) -> u64 {
+        item.len() as u64
+    }
+}
+
+impl Shardable for kvrpcpb::RawBatchDeleteRequest {
+    type Shard = Vec<Vec<u8>>;
+
+    fn shards(
+        &self,
+        pd_client: &Arc<impl PdClient>,
+    ) -> BoxStream<'static, Result<(Self::Shard, RegionWithLeader)>> {
+        let mut keys = self.keys.clone();
+        keys.sort();
+        region_stream_for_keys(keys.into_iter(), pd_client.clone())
+            .flat_map(|result| match result {
+                Ok((keys, region)) => stream::iter(kvrpcpb::RawBatchDeleteRequest::batches(
+                    keys,
+                    RAW_KV_REQUEST_BATCH_SIZE,
+                ))
+                .map(move |batch| Ok((batch, region.clone())))
+                .boxed(),
+                Err(e) => stream::iter(Err(e)).boxed(),
+            })
+            .boxed()
+    }
+
+    fn apply_shard(&mut self, shard: Self::Shard) {
+        self.keys = shard;
+    }
+
+    fn clone_then_apply_shard(&self, shard: Self::Shard) -> Self
+    where
+        Self: Sized + Clone,
+    {
+        let mut cloned = Self::default();
+        cloned.context = self.context.clone();
+        cloned.cf = self.cf.clone();
+        cloned.for_cas = self.for_cas;
+        cloned.apply_shard(shard);
+        cloned
+    }
+
+    fn apply_store(&mut self, store: &RegionStore) -> Result<()> {
+        self.set_leader(&store.region_with_leader)
+    }
+}
 
 pub fn new_raw_delete_range_request(
     start_key: Vec<u8>,
@@ -340,14 +428,16 @@ impl Shardable for kvrpcpb::RawBatchScanRequest {
     fn shards(
         &self,
         pd_client: &Arc<impl PdClient>,
-    ) -> BoxStream<'static, Result<(Self::Shard, RegionStore)>> {
-        store_stream_for_ranges(self.ranges.clone(), pd_client.clone())
+    ) -> BoxStream<'static, Result<(Self::Shard, RegionWithLeader)>> {
+        region_stream_for_ranges(self.ranges.clone(), pd_client.clone())
     }
 
-    fn apply_shard(&mut self, shard: Self::Shard, store: &RegionStore) -> Result<()> {
-        self.set_leader(&store.region_with_leader)?;
+    fn apply_shard(&mut self, shard: Self::Shard) {
         self.ranges = shard;
-        Ok(())
+    }
+
+    fn apply_store(&mut self, store: &RegionStore) -> Result<()> {
+        self.set_leader(&store.region_with_leader)
     }
 }
 
@@ -466,14 +556,20 @@ impl Shardable for RawCoprocessorRequest {
     fn shards(
         &self,
         pd_client: &Arc<impl PdClient>,
-    ) -> BoxStream<'static, Result<(Self::Shard, RegionStore)>> {
-        store_stream_for_ranges(self.inner.ranges.clone(), pd_client.clone())
+    ) -> BoxStream<'static, Result<(Self::Shard, RegionWithLeader)>> {
+        region_stream_for_ranges(self.inner.ranges.clone(), pd_client.clone())
     }
 
-    fn apply_shard(&mut self, shard: Self::Shard, store: &RegionStore) -> Result<()> {
+    fn apply_shard(&mut self, shard: Self::Shard) {
+        self.inner.ranges = shard;
+    }
+
+    fn apply_store(&mut self, store: &RegionStore) -> Result<()> {
         self.set_leader(&store.region_with_leader)?;
-        self.inner.ranges.clone_from(&shard);
-        self.inner.data = (self.data_builder)(store.region_with_leader.region.clone(), shard);
+        self.inner.data = (self.data_builder)(
+            store.region_with_leader.region.clone(),
+            self.inner.ranges.clone(),
+        );
         Ok(())
     }
 }
@@ -531,21 +627,35 @@ impl_raw_rpc_request!(RawDeleteRangeRequest);
 impl_raw_rpc_request!(RawCasRequest);
 
 impl HasLocks for kvrpcpb::RawGetResponse {}
+
 impl HasLocks for kvrpcpb::RawBatchGetResponse {}
+
 impl HasLocks for kvrpcpb::RawGetKeyTtlResponse {}
+
 impl HasLocks for kvrpcpb::RawPutResponse {}
+
 impl HasLocks for kvrpcpb::RawBatchPutResponse {}
+
 impl HasLocks for kvrpcpb::RawDeleteResponse {}
+
 impl HasLocks for kvrpcpb::RawBatchDeleteResponse {}
+
 impl HasLocks for kvrpcpb::RawScanResponse {}
+
 impl HasLocks for kvrpcpb::RawBatchScanResponse {}
+
 impl HasLocks for kvrpcpb::RawDeleteRangeResponse {}
+
 impl HasLocks for kvrpcpb::RawCasResponse {}
+
 impl HasLocks for kvrpcpb::RawCoprocessorResponse {}
 
 #[cfg(test)]
 mod test {
     use std::any::Any;
+    use std::collections::HashMap;
+    use std::ops::Deref;
+    use std::sync::Mutex;
 
     use super::*;
     use crate::backoff::DEFAULT_REGION_BACKOFF;
@@ -555,7 +665,6 @@ mod test {
     use crate::proto::kvrpcpb;
     use crate::request::Keyspace;
     use crate::request::Plan;
-    use crate::Key;
 
     #[rstest::rstest]
     #[case(Keyspace::Disable)]
@@ -599,5 +708,59 @@ mod test {
 
         assert_eq!(scan.len(), 49);
         // FIXME test the keys returned.
+    }
+
+    #[tokio::test]
+    async fn test_raw_batch_put() -> Result<()> {
+        let region1_kvs = vec![KvPair(vec![9].into(), vec![12])];
+        let region1_ttls = vec![0];
+        let region2_kvs = vec![
+            KvPair(vec![11].into(), vec![12]),
+            KvPair("FFF".to_string().as_bytes().to_vec().into(), vec![12]),
+        ];
+        let region2_ttls = vec![0, 1];
+
+        let expected_map = HashMap::from([
+            (region1_kvs.clone(), region1_ttls.clone()),
+            (region2_kvs.clone(), region2_ttls.clone()),
+        ]);
+
+        let pairs: Vec<kvrpcpb::KvPair> = [region1_kvs, region2_kvs]
+            .concat()
+            .into_iter()
+            .map(|kv| kv.into())
+            .collect();
+        let ttls = [region1_ttls, region2_ttls].concat();
+        let cf = ColumnFamily::Default;
+
+        let actual_map: Arc<Mutex<HashMap<Vec<KvPair>, Vec<u64>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        let fut_actual_map = actual_map.clone();
+        let client = Arc::new(MockPdClient::new(MockKvClient::with_dispatch_hook(
+            move |req: &dyn Any| {
+                let req: &kvrpcpb::RawBatchPutRequest = req.downcast_ref().unwrap();
+                let kv_pair = req
+                    .pairs
+                    .clone()
+                    .into_iter()
+                    .map(|p| p.into())
+                    .collect::<Vec<KvPair>>();
+                let ttls = req.ttls.clone();
+                fut_actual_map.lock().unwrap().insert(kv_pair, ttls);
+                let resp = kvrpcpb::RawBatchPutResponse::default();
+                Ok(Box::new(resp) as Box<dyn Any>)
+            },
+        )));
+
+        let batch_put_request =
+            new_raw_batch_put_request(pairs.clone(), ttls.clone(), Some(cf), false);
+        let keyspace = Keyspace::Enable { keyspace_id: 0 };
+        let plan = crate::request::PlanBuilder::new(client, keyspace, batch_put_request)
+            .resolve_lock(OPTIMISTIC_BACKOFF, keyspace)
+            .retry_multi_region(DEFAULT_REGION_BACKOFF)
+            .plan();
+        let _ = plan.execute().await;
+        assert_eq!(actual_map.lock().unwrap().deref(), &expected_map);
+        Ok(())
     }
 }
