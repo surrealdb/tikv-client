@@ -132,6 +132,16 @@ async fn txn_cleanup_locks_batch_size() -> Result<()> {
     assert_eq!(count_locks(&client).await?, keys.len());
 
     scenario.teardown();
+
+    // Clean up remaining locks to avoid affecting subsequent tests.
+    let safepoint = client.current_timestamp().await?;
+    let options = ResolveLocksOptions {
+        async_commit_only: false,
+        ..Default::default()
+    };
+    client.cleanup_locks(.., &safepoint, options).await?;
+    assert_eq!(count_locks(&client).await?, 0);
+
     Ok(())
 }
 
