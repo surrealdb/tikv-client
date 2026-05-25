@@ -1,3 +1,5 @@
 [toolchain]
-channel = "1.84.1"
+# Bumped from 1.84.1 to satisfy tonic 0.14 / tokio 1.x edition2024 requirement.
+# Pin matches the SurrealDB workspace's MSRV.
+channel = "1.95.0"
 components = ["rustfmt", "clippy"]

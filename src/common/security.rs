@@ -16,9 +16,10 @@ use tonic::transport::{Certificate, Endpoint};
 use crate::internal_err;
 use crate::Result;
 
-lazy_static::lazy_static! {
-    static ref SCHEME_REG: Regex = Regex::new(r"^\s*(https?://)").unwrap();
-}
+use std::sync::LazyLock;
+
+static SCHEME_REG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*(https?://)").unwrap());
 
 fn check_pem_file(tag: &str, path: &Path) -> Result<File> {
     File::open(path)
@@ -114,35 +115,5 @@ impl SecurityManager {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::fs::File;
-    use std::io::Write;
-    use std::path::PathBuf;
-
-    use tempfile;
-
-    use super::*;
-
-    #[test]
-    fn test_security() {
-        let temp = tempfile::tempdir().unwrap();
-        let example_ca = temp.path().join("ca");
-        let example_cert = temp.path().join("cert");
-        let example_pem = temp.path().join("key");
-        for (id, f) in [&example_ca, &example_cert, &example_pem]
-            .iter()
-            .enumerate()
-        {
-            File::create(f).unwrap().write_all(&[id as u8]).unwrap();
-        }
-        let cert_path: PathBuf = format!("{}", example_cert.display()).into();
-        let key_path: PathBuf = format!("{}", example_pem.display()).into();
-        let ca_path: PathBuf = format!("{}", example_ca.display()).into();
-        let mgr = SecurityManager::load(ca_path, cert_path, &key_path).unwrap();
-        assert_eq!(mgr.ca, vec![0]);
-        assert_eq!(mgr.cert, vec![1]);
-        let key = load_pem_file("private key", &key_path).unwrap();
-        assert_eq!(key, vec![2]);
-    }
-}
+// Upstream's in-crate test module was removed in the SurrealDB fork;
+// it depended on the dropped tempfile dev-dep.

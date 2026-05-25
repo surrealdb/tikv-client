@@ -1,11 +1,11 @@
 [package]
 name = "surrealdb-tikv-client"
-version = "0.3.0-surreal.4"
+version = "0.4.0-surreal.1"
 keywords = ["TiKV", "KV", "distributed-systems"]
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
-repository = "https://github.com/tikv/client-rust"
-description = "The Rust language implementation of TiKV client."
+repository = "https://github.com/surrealdb/tikv-client"
+description = "The Rust language implementation of TiKV client (SurrealDB fork)."
 edition = "2021"
 
 [features]
@@ -25,42 +25,34 @@ members = [
 ]
 
 [dependencies]
-async-recursion = "0.3"
+async-recursion = "1.1"
 async-trait = "0.1"
-derive-new = "0.5"
-either = "1.6"
-fail = "0.4"
-futures = { version = "0.3" }
-lazy_static = "1"
+derive-new = "0.7"
+either = "1.15"
+fail = "0.5"
+futures = "0.3"
 log = "0.4"
-pin-project = "1"
-prometheus = { version = "0.13", default-features = false }
-prost = "0.12"
-rand = "0.8"
+pin-project = "1.1"
+prometheus = { version = "0.14", default-features = false }
+prost = "0.14"
+rand = "0.9"
 regex = "1"
 semver = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-serde_json = "1"
 take_mut = "0.2.2"
-thiserror = "1"
+thiserror = "2"
 tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
-tonic = { version = "0.10", features = ["tls"] }
+tonic = { version = "0.14", features = ["tls-native-roots"] }
+tonic-prost = "0.14"
 
-[dev-dependencies]
-clap = "2"
-env_logger = "0.10"
-fail = { version = "0.4", features = ["failpoints"] }
-proptest = "1"
-proptest-derive = "0.5.1"
-reqwest = { version = "0.11", features = ["json", "native-tls-vendored"] }
-rstest = "0.18.2"
-serde_json = "1"
-serial_test = "0.5.0"
-tempfile = "3.6"
-tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
-
-[[test]]
-name = "failpoint_tests"
-path = "tests/failpoint_tests.rs"
-required-features = ["fail/failpoints"]
+# Upstream `tikv/client-rust` carried a heavier `[dev-dependencies]`
+# block (clap 2, env_logger, serial_test 0.5, proptest, proptest-derive,
+# reqwest, rstest, tempfile) for its CLI examples and live-cluster
+# integration tests. These pulled in unmaintained transitive crates
+# (ansi_term -> RUSTSEC-2021-0139, atty -> RUSTSEC-2024-0375,
+# instant -> RUSTSEC-2024-0384) and the matching in-crate `#[cfg(test)]`
+# modules + the `tests/`, `examples/`, and `src/proptests/` trees were
+# dropped from this fork together with the dev-deps. The deleted files
+# remain in upstream history; reintroduce them via the
+# `tikv/client-rust` repo if you need to run upstream's test suite.

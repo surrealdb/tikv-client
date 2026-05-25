@@ -20,11 +20,13 @@ pub struct Config {
     pub key_path: Option<PathBuf>,
     pub timeout: Duration,
     pub grpc_max_decoding_message_size: usize,
+    pub grpc_max_encoding_message_size: usize,
     pub keyspace: Option<String>,
 }
 
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 const DEFAULT_GRPC_MAX_DECODING_MESSAGE_SIZE: usize = 4 * 1024 * 1024; // 4MB
+const DEFAULT_GRPC_MAX_ENCODING_MESSAGE_SIZE: usize = 4 * 1024 * 1024; // 4MB
 
 impl Default for Config {
     fn default() -> Self {
@@ -34,6 +36,7 @@ impl Default for Config {
             key_path: None,
             timeout: DEFAULT_REQUEST_TIMEOUT,
             grpc_max_decoding_message_size: DEFAULT_GRPC_MAX_DECODING_MESSAGE_SIZE,
+            grpc_max_encoding_message_size: DEFAULT_GRPC_MAX_ENCODING_MESSAGE_SIZE,
             keyspace: None,
         }
     }
@@ -93,6 +96,17 @@ impl Config {
     #[must_use]
     pub fn with_grpc_max_decoding_message_size(mut self, size: usize) -> Self {
         self.grpc_max_decoding_message_size = size;
+        self
+    }
+
+    /// Set the maximum encoding message size for gRPC.
+    ///
+    /// Mirrors [`Self::with_grpc_max_decoding_message_size`] for the
+    /// request side. Useful when the cluster is configured to accept
+    /// payloads larger than the 4 MB default.
+    #[must_use]
+    pub fn with_grpc_max_encoding_message_size(mut self, size: usize) -> Self {
+        self.grpc_max_encoding_message_size = size;
         self
     }
 

@@ -6,10 +6,10 @@ publish = false
 keywords = ["TiKV", "KV", "distributed-systems"]
 license = "Apache-2.0"
 authors = ["The TiKV Project Authors"]
-repository = "https://github.com/tikv/client-rust"
-description = "The Rust language implementation of TiKV client."
+repository = "https://github.com/surrealdb/tikv-client"
+description = "Regenerates the surrealdb-tikv-client gRPC bindings via tonic-prost-build."
 edition = "2021"
 
 [dependencies]
 glob = "0.3"
-tonic-build = { version = "0.10", features = ["cleanup-markdown"] }
+tonic-prost-build = { version = "0.14", features = ["cleanup-markdown"] }
