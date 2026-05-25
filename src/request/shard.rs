@@ -308,8 +308,8 @@ macro_rules! shardable_range {
 
 #[cfg(test)]
 mod test {
-    use rand::Rng;
     use rand::rng;
+    use rand::Rng;
 
     use super::Batchable;
 

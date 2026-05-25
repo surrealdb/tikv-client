@@ -145,8 +145,11 @@ static PD_FAILED_REQUEST_COUNTER_VEC: LazyLock<IntCounterVec> = LazyLock::new(||
     .unwrap()
 });
 static PD_TSO_BATCH_SIZE_HISTOGRAM: LazyLock<Histogram> = LazyLock::new(|| {
-    register_histogram!("pd_tso_batch_size", "Bucketed histogram of TSO request batch size")
-        .unwrap()
+    register_histogram!(
+        "pd_tso_batch_size",
+        "Bucketed histogram of TSO request batch size"
+    )
+    .unwrap()
 });
 
 /// Convert Duration to seconds.

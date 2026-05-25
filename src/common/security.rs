@@ -18,8 +18,7 @@ use crate::Result;
 
 use std::sync::LazyLock;
 
-static SCHEME_REG: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^\s*(https?://)").unwrap());
+static SCHEME_REG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*(https?://)").unwrap());
 
 fn check_pem_file(tag: &str, path: &Path) -> Result<File> {
     File::open(path)

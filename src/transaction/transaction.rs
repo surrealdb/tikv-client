@@ -134,7 +134,7 @@ impl<PdC: PdClient> Transaction<PdC> {
     pub async fn get(&mut self, key: impl Into<Key>) -> Result<Option<Value>> {
         trace!("invoking transactional get request");
         self.check_allow_operation().await?;
-        let timestamp = self.timestamp.clone();
+        let timestamp = self.timestamp;
         let rpc = self.rpc.clone();
         let key = key.into().encode_keyspace(self.keyspace, KeyMode::Txn);
         let retry_options = self.options.retry_options.clone();
@@ -267,7 +267,7 @@ impl<PdC: PdClient> Transaction<PdC> {
     ) -> Result<impl Iterator<Item = KvPair>> {
         debug!("invoking transactional batch_get request");
         self.check_allow_operation().await?;
-        let timestamp = self.timestamp.clone();
+        let timestamp = self.timestamp;
         let rpc = self.rpc.clone();
         let keyspace = self.keyspace;
         let keys = keys
@@ -667,7 +667,7 @@ impl<PdC: PdClient> Transaction<PdC> {
         let res = Committer::new(
             primary_key,
             mutations,
-            self.timestamp.clone(),
+            self.timestamp,
             self.rpc.clone(),
             self.options.clone(),
             self.keyspace,
@@ -720,7 +720,7 @@ impl<PdC: PdClient> Transaction<PdC> {
         let res = Committer::new(
             primary_key,
             mutations,
-            self.timestamp.clone(),
+            self.timestamp,
             self.rpc.clone(),
             self.options.clone(),
             self.keyspace,
@@ -738,7 +738,7 @@ impl<PdC: PdClient> Transaction<PdC> {
 
     /// Get the start timestamp of this transaction.
     pub fn start_timestamp(&self) -> Timestamp {
-        self.timestamp.clone()
+        self.timestamp
     }
 
     /// Get the current timestamp from PD.
@@ -760,7 +760,7 @@ impl<PdC: PdClient> Transaction<PdC> {
             None => return Err(Error::NoPrimaryKey),
         };
         let request = new_heart_beat_request(
-            self.timestamp.clone(),
+            self.timestamp,
             primary_key,
             self.start_instant.elapsed().as_millis() as u64 + MAX_TTL,
         );
@@ -785,7 +785,7 @@ impl<PdC: PdClient> Transaction<PdC> {
         reverse: bool,
     ) -> Result<impl Iterator<Item = KvPair>> {
         self.check_allow_operation().await?;
-        let timestamp = self.timestamp.clone();
+        let timestamp = self.timestamp;
         let rpc = self.rpc.clone();
         let retry_options = self.options.retry_options.clone();
         let keyspace = self.keyspace;
@@ -845,13 +845,13 @@ impl<PdC: PdClient> Transaction<PdC> {
             .get_primary_key()
             .unwrap_or_else(|| first_key.clone());
         let for_update_ts = self.rpc.clone().get_timestamp().await?;
-        self.options.push_for_update_ts(for_update_ts.clone());
+        self.options.push_for_update_ts(for_update_ts);
         let request = new_pessimistic_lock_request(
             keys.clone().into_iter(),
             primary_lock,
-            self.timestamp.clone(),
+            self.timestamp,
             MAX_TTL,
-            for_update_ts.clone(),
+            for_update_ts,
             need_value,
         );
         let plan = PlanBuilder::new(self.rpc.clone(), self.keyspace, request)
@@ -872,7 +872,7 @@ impl<PdC: PdClient> Transaction<PdC> {
                     success_keys,
                 } if !success_keys.is_empty() => {
                     let keys = success_keys.into_iter().map(Key::from);
-                    self.pessimistic_lock_rollback(keys, self.timestamp.clone(), for_update_ts)
+                    self.pessimistic_lock_rollback(keys, self.timestamp, for_update_ts)
                         .await?;
                     Err(*inner)
                 }
@@ -955,7 +955,7 @@ impl<PdC: PdClient> Transaction<PdC> {
             .buffer
             .get_primary_key()
             .expect("Primary key should exist");
-        let start_ts = self.timestamp.clone();
+        let start_ts = self.timestamp;
         let region_backoff = self.options.retry_options.region_backoff.clone();
         let rpc = self.rpc.clone();
         let heartbeat_interval = match self.options.heartbeat_option {
@@ -980,7 +980,7 @@ impl<PdC: PdClient> Transaction<PdC> {
                     }
                 }
                 let request = new_heart_beat_request(
-                    start_ts.clone(),
+                    start_ts,
                     primary_key.clone(),
                     start_instant.elapsed().as_millis() as u64 + MAX_TTL,
                 );
@@ -1299,7 +1299,7 @@ impl<PdC: PdClient> Committer<PdC> {
                 }
             }
         };
-        tokio::spawn(self.commit_secondary(commit_ts.clone()).map(|res| {
+        tokio::spawn(self.commit_secondary(commit_ts).map(|res| {
             if let Err(e) = res {
                 log::warn!("Failed to commit secondary keys: {}", e);
             }
@@ -1316,15 +1316,15 @@ impl<PdC: PdClient> Committer<PdC> {
             TransactionKind::Optimistic => new_prewrite_request(
                 self.mutations.clone(),
                 primary_lock,
-                self.start_version.clone(),
+                self.start_version,
                 lock_ttl + elapsed,
             ),
             TransactionKind::Pessimistic(for_update_ts) => new_pessimistic_prewrite_request(
                 self.mutations.clone(),
                 primary_lock,
-                self.start_version.clone(),
+                self.start_version,
                 lock_ttl + elapsed,
-                for_update_ts.clone(),
+                *for_update_ts,
             ),
         };
 
@@ -1376,11 +1376,7 @@ impl<PdC: PdClient> Committer<PdC> {
         debug!("committing primary");
         let primary_key = self.primary_key.clone().into_iter();
         let commit_version = self.rpc.clone().get_timestamp().await?;
-        let req = new_commit_request(
-            primary_key,
-            self.start_version.clone(),
-            commit_version.clone(),
-        );
+        let req = new_commit_request(primary_key, self.start_version, commit_version);
         let plan = PlanBuilder::new(self.rpc.clone(), self.keyspace, req)
             .resolve_lock(
                 self.options.retry_options.lock_backoff.clone(),
@@ -1415,6 +1411,9 @@ impl<PdC: PdClient> Committer<PdC> {
             // Truncate mutation to a new length as `percent/100`.
             // Return error when truncate to zero.
             let fp = || -> Result<usize> {
+                // `mut` is only consumed by the `fail_point!` body, which is
+                // compiled away when the `fail/failpoints` feature is off.
+                #[allow(unused_mut)]
                 let mut new_len = mutations_len;
                 fail_point!("before-commit-secondary", |percent| {
                     let percent = percent.unwrap().parse::<usize>().unwrap();

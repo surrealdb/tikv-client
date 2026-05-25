@@ -4,8 +4,8 @@
 
 use std::time::Duration;
 
-use rand::Rng;
 use rand::rng;
+use rand::Rng;
 
 pub const DEFAULT_REGION_BACKOFF: Backoff = Backoff::no_jitter_backoff(2, 500, 10);
 pub const DEFAULT_STORE_BACKOFF: Backoff = Backoff::no_jitter_backoff(2, 1000, 10);
