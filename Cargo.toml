@@ -46,13 +46,32 @@ tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
 tonic = { version = "0.14", features = ["tls-native-roots"] }
 tonic-prost = "0.14"
 
-# Upstream `tikv/client-rust` carried a heavier `[dev-dependencies]`
-# block (clap 2, env_logger, serial_test 0.5, proptest, proptest-derive,
-# reqwest, rstest, tempfile) for its CLI examples and live-cluster
-# integration tests. These pulled in unmaintained transitive crates
-# (ansi_term -> RUSTSEC-2021-0139, atty -> RUSTSEC-2024-0375,
-# instant -> RUSTSEC-2024-0384) and the matching in-crate `#[cfg(test)]`
-# modules + the `tests/`, `examples/`, and `src/proptests/` trees were
-# dropped from this fork together with the dev-deps. The deleted files
-# remain in upstream history; reintroduce them via the
-# `tikv/client-rust` repo if you need to run upstream's test suite.
+# Upstream `tikv/client-rust`'s `[dev-dependencies]` block was much
+# heavier (clap 2, env_logger, proptest, proptest-derive, reqwest,
+# rstest, tempfile) because it served the CLI examples and the
+# in-crate proptest derives — both of which were dropped during the
+# SurrealDB fork's modernisation. What's left below is the strict
+# minimum the `tests/` tree still needs to exercise the live-cluster
+# integration suite against a TiKV cluster.
+#
+# `serial_test 3.x` replaces the previous 0.5 pin: the latter pulled
+# in `parking_lot 0.11` / `instant` (RUSTSEC-2024-0384). 3.x drops
+# both. The `#[serial]` attribute API has been stable across the bump.
+
+[dev-dependencies]
+env_logger = "0.11"
+fail = { version = "0.5", features = ["failpoints"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+serde_json = "1"
+serial_test = "3"
+tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
+
+[[test]]
+name = "failpoint_tests"
+path = "tests/failpoint_tests.rs"
+required-features = ["fail/failpoints"]
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+required-features = ["integration-tests"]
