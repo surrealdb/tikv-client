@@ -48,6 +48,8 @@ jobs:
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Install latest nextest release
         uses: taiki-e/install-action@d9be7d8cda89035c9c843f78bd44d4f72d8403d4 # v2
+        with:
+          tool: nextest
       - name: unit test
         run: make unit-test
 
@@ -86,6 +88,8 @@ jobs:
           done
       - name: Install latest nextest release
         uses: taiki-e/install-action@d9be7d8cda89035c9c843f78bd44d4f72d8403d4 # v2
+        with:
+          tool: nextest
       - name: Integration test
         run: MULTI_REGION=1 make ${{ matrix.case }}
       - name: Upload logs
