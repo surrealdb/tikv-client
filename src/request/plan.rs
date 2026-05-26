@@ -364,12 +364,7 @@ pub(crate) async fn on_region_epoch_not_match<PdC: PdClient>(
             let region_epoch = r.region_epoch.unwrap();
             let returned_conf_ver = region_epoch.conf_ver;
             let returned_version = region_epoch.version;
-            let current_region_epoch = region_store
-                .region_with_leader
-                .region
-                .region_epoch
-                .clone()
-                .unwrap();
+            let current_region_epoch = region_store.region_with_leader.region.region_epoch.unwrap();
             let current_conf_ver = current_region_epoch.conf_ver;
             let current_version = current_region_epoch.version;
 

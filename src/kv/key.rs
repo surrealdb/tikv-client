@@ -3,14 +3,11 @@
 use std::fmt;
 use std::ops::Bound;
 
-#[allow(unused_imports)]
-#[cfg(test)]
-use proptest::arbitrary::any_with;
-#[allow(unused_imports)]
-#[cfg(test)]
-use proptest::collection::size_range;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
+// Upstream's `proptest` / `proptest_derive` integration was dropped in
+// the SurrealDB fork together with the rest of the dev-deps that pulled
+// in unmaintained crates (RUSTSEC-2021-0139, RUSTSEC-2024-0375,
+// RUSTSEC-2024-0384). Reintroduce via `tikv/client-rust` if upstream
+// fuzz tests are needed.
 
 use super::HexRepr;
 use crate::kv::codec::BytesEncoder;
@@ -64,15 +61,8 @@ const _PROPTEST_KEY_MAX: usize = 1024 * 2; // 2 KB
 /// Many functions which accept a `Key` accept an `Into<Key>`, which means all of the above types
 /// can be passed directly to those functions.
 #[derive(Default, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[cfg_attr(test, derive(Arbitrary))]
 #[repr(transparent)]
-pub struct Key(
-    #[cfg_attr(
-        test,
-        proptest(strategy = "any_with::<Vec<u8>>((size_range(_PROPTEST_KEY_MAX), ()))")
-    )]
-    pub(crate) Vec<u8>,
-);
+pub struct Key(pub(crate) Vec<u8>);
 
 impl AsRef<Key> for kvrpcpb::Mutation {
     fn as_ref(&self) -> &Key {

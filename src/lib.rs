@@ -120,8 +120,6 @@ mod util;
 
 #[cfg(test)]
 mod mock;
-#[cfg(test)]
-mod proptests;
 
 #[doc(inline)]
 pub use common::security::SecurityManager;

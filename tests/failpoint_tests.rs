@@ -10,7 +10,7 @@ use std::time::Duration;
 use common::*;
 use fail::FailScenario;
 use log::info;
-use rand::thread_rng;
+use rand::rng;
 use serial_test::serial;
 use tikv_client::transaction::Client;
 use tikv_client::transaction::HeartbeatOption;
@@ -391,7 +391,7 @@ async fn write_data(
     async_commit: bool,
     commit_error: bool,
 ) -> Result<HashSet<Vec<u8>>> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let keys = gen_u32_keys((TXN_COUNT * KEY_COUNT) as u32, &mut rng);
     let mut txns = Vec::with_capacity(TXN_COUNT);
 

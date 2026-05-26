@@ -12,8 +12,7 @@ use std::ops::RangeInclusive;
 use std::ops::RangeTo;
 use std::ops::RangeToInclusive;
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
+// proptest_derive removed in the SurrealDB fork; see comment on `Key`.
 
 use super::Key;
 use crate::proto::kvrpcpb;
@@ -65,7 +64,6 @@ use crate::proto::kvrpcpb;
 /// );
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub struct BoundRange {
     pub from: Bound<Key>,
     pub to: Bound<Key>,

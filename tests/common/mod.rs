@@ -148,7 +148,7 @@ pub async fn get_txn_u32(txn: &mut Transaction, key: Vec<u8>) -> Result<u32> {
 pub fn gen_u32_keys(num: u32, rng: &mut impl Rng) -> HashSet<Vec<u8>> {
     let mut set = HashSet::new();
     for _ in 0..num {
-        set.insert(rng.gen::<u32>().to_be_bytes().to_vec());
+        set.insert(rng.random::<u32>().to_be_bytes().to_vec());
     }
     set
 }

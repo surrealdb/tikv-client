@@ -26,6 +26,7 @@ pub struct TikvConnect {
     security_mgr: Arc<SecurityManager>,
     timeout: Duration,
     grpc_max_decoding_message_size: usize,
+    grpc_max_encoding_message_size: usize,
 }
 
 #[async_trait]
@@ -37,6 +38,7 @@ impl KvConnect for TikvConnect {
             .connect(address, move |channel| {
                 TikvClient::new(channel)
                     .max_decoding_message_size(self.grpc_max_decoding_message_size)
+                    .max_encoding_message_size(self.grpc_max_encoding_message_size)
             })
             .await
             .map(|c| KvRpcClient::new(c, self.timeout))

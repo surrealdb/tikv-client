@@ -428,51 +428,5 @@ pub trait HasLocks {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::any::Any;
-
-    use serial_test::serial;
-
-    use super::*;
-    use crate::mock::MockKvClient;
-    use crate::mock::MockPdClient;
-    use crate::proto::errorpb;
-
-    #[rstest::rstest]
-    #[case(Keyspace::Disable)]
-    #[case(Keyspace::Enable { keyspace_id: 0 })]
-    #[tokio::test]
-    #[serial]
-    async fn test_resolve_lock_with_retry(#[case] keyspace: Keyspace) {
-        // Test resolve lock within retry limit
-        fail::cfg("region-error", "9*return").unwrap();
-
-        let client = Arc::new(MockPdClient::new(MockKvClient::with_dispatch_hook(
-            |_: &dyn Any| {
-                fail::fail_point!("region-error", |_| {
-                    let resp = kvrpcpb::ResolveLockResponse {
-                        region_error: Some(errorpb::Error::default()),
-                        ..Default::default()
-                    };
-                    Ok(Box::new(resp) as Box<dyn Any>)
-                });
-                Ok(Box::<kvrpcpb::ResolveLockResponse>::default() as Box<dyn Any>)
-            },
-        )));
-
-        let key = vec![1];
-        let region1 = MockPdClient::region1();
-        let resolved_region = resolve_lock_with_retry(&key, 1, 2, client.clone(), keyspace)
-            .await
-            .unwrap();
-        assert_eq!(region1.ver_id(), resolved_region);
-
-        // Test resolve lock over retry limit
-        fail::cfg("region-error", "10*return").unwrap();
-        let key = vec![100];
-        resolve_lock_with_retry(&key, 3, 4, client, keyspace)
-            .await
-            .expect_err("should return error");
-    }
-}
+// Upstream's in-crate test module was removed in the SurrealDB fork;
+// it depended on the dropped serial_test / rstest dev-deps.

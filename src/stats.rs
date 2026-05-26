@@ -78,61 +78,79 @@ pub fn observe_tso_batch(batch_size: usize) {
     PD_TSO_BATCH_SIZE_HISTOGRAM.observe(batch_size as f64);
 }
 
-lazy_static::lazy_static! {
-    static ref TIKV_REQUEST_DURATION_HISTOGRAM_VEC: HistogramVec = register_histogram_vec!(
+use std::sync::LazyLock;
+
+static TIKV_REQUEST_DURATION_HISTOGRAM_VEC: LazyLock<HistogramVec> = LazyLock::new(|| {
+    register_histogram_vec!(
         "tikv_request_duration_seconds",
         "Bucketed histogram of TiKV requests duration",
         &["type"]
     )
-    .unwrap();
-    static ref TIKV_REQUEST_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+    .unwrap()
+});
+static TIKV_REQUEST_COUNTER_VEC: LazyLock<IntCounterVec> = LazyLock::new(|| {
+    register_int_counter_vec!(
         "tikv_request_total",
         "Total number of requests sent to TiKV",
         &["type"]
     )
-    .unwrap();
-    static ref TIKV_FAILED_REQUEST_DURATION_HISTOGRAM_VEC: HistogramVec = register_histogram_vec!(
+    .unwrap()
+});
+static TIKV_FAILED_REQUEST_DURATION_HISTOGRAM_VEC: LazyLock<HistogramVec> = LazyLock::new(|| {
+    register_histogram_vec!(
         "tikv_failed_request_duration_seconds",
         "Bucketed histogram of failed TiKV requests duration",
         &["type"]
     )
-    .unwrap();
-    static ref TIKV_FAILED_REQUEST_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+    .unwrap()
+});
+static TIKV_FAILED_REQUEST_COUNTER_VEC: LazyLock<IntCounterVec> = LazyLock::new(|| {
+    register_int_counter_vec!(
         "tikv_failed_request_total",
         "Total number of failed requests sent to TiKV",
         &["type"]
     )
-    .unwrap();
-    static ref PD_REQUEST_DURATION_HISTOGRAM_VEC: HistogramVec = register_histogram_vec!(
+    .unwrap()
+});
+static PD_REQUEST_DURATION_HISTOGRAM_VEC: LazyLock<HistogramVec> = LazyLock::new(|| {
+    register_histogram_vec!(
         "pd_request_duration_seconds",
         "Bucketed histogram of PD requests duration",
         &["type"]
     )
-    .unwrap();
-    static ref PD_REQUEST_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+    .unwrap()
+});
+static PD_REQUEST_COUNTER_VEC: LazyLock<IntCounterVec> = LazyLock::new(|| {
+    register_int_counter_vec!(
         "pd_request_total",
         "Total number of requests sent to PD",
         &["type"]
     )
-    .unwrap();
-    static ref PD_FAILED_REQUEST_DURATION_HISTOGRAM_VEC: HistogramVec = register_histogram_vec!(
+    .unwrap()
+});
+static PD_FAILED_REQUEST_DURATION_HISTOGRAM_VEC: LazyLock<HistogramVec> = LazyLock::new(|| {
+    register_histogram_vec!(
         "pd_failed_request_duration_seconds",
         "Bucketed histogram of failed PD requests duration",
         &["type"]
     )
-    .unwrap();
-    static ref PD_FAILED_REQUEST_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+    .unwrap()
+});
+static PD_FAILED_REQUEST_COUNTER_VEC: LazyLock<IntCounterVec> = LazyLock::new(|| {
+    register_int_counter_vec!(
         "pd_failed_request_total",
         "Total number of failed requests sent to PD",
         &["type"]
     )
-    .unwrap();
-    static ref PD_TSO_BATCH_SIZE_HISTOGRAM: Histogram = register_histogram!(
+    .unwrap()
+});
+static PD_TSO_BATCH_SIZE_HISTOGRAM: LazyLock<Histogram> = LazyLock::new(|| {
+    register_histogram!(
         "pd_tso_batch_size",
         "Bucketed histogram of TSO request batch size"
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 /// Convert Duration to seconds.
 #[inline]
